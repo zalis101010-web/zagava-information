@@ -1,1 +1,42 @@
+name: Steam Status
 
+on:
+  schedule:
+    - cron: "*/1 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  steam:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Update Steam Status
+        env:
+          STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+        run: |
+          node update_steam.js
+
+      - name: Commit status
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add status.json
+
+          if git diff --cached --quiet; then
+            echo "Nothing changed"
+          else
+            git commit -m "Update Steam status"
+            git push
+          fi
