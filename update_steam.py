@@ -6,6 +6,7 @@ import urllib.request
 import urllib.error
 
 STATUS_FILE = "status.json"
+
 API_URL = (
     "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/"
     "?key={api_key}&steamids={steam_id}"
@@ -13,86 +14,68 @@ API_URL = (
 
 
 def load_previous_status():
-    """Читает предыдущий status.json, если он есть, иначе возвращает пустой статус."""
     default = {
         "online": False,
         "playing": False,
         "game": None,
         "started": None,
     }
+
     if not os.path.exists(STATUS_FILE):
         return default
+
     try:
         with open(STATUS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return {
-            "online": data.get("online", False),
-            "playing": data.get("playing", False),
-            "game": data.get("game"),
-            "started": data.get("started"),
-        }
-    except (json.JSONDecodeError, OSError):
+            return json.load(f)
+    except Exception:
         return default
 
 
 def fetch_steam_data(api_key, steam_id):
-    """Делает запрос к Steam Web API и возвращает словарь player, либо None при ошибке."""
     url = API_URL.format(api_key=api_key, steam_id=steam_id)
+
     try:
         with urllib.request.urlopen(url, timeout=15) as response:
-            raw = response.read()
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
-        print(f"Ошибка запроса к Steam API: {e}", file=sys.stderr)
+            return json.loads(response.read())
+    except Exception as e:
+        print(f"Steam API error: {e}", file=sys.stderr)
         return None
-
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(f"Ошибка разбора ответа Steam API: {e}", file=sys.stderr)
-        return None
-
-    players = data.get("response", {}).get("players", [])
-    if not players:
-        print("Steam API вернул пустой список игроков.", file=sys.stderr)
-        return None
-
-    return players[0]
 
 
 def build_status(player, previous):
-    """
-    Строит новый статус на основе данных Steam и предыдущего состояния.
+    now = int(time.time())
 
-    - online: в сети / не в сети (personastate != 0)
-    - playing: сейчас запущена игра (gameextrainfo)
-    - started: unix-время начала ТЕКУЩЕЙ игровой сессии.
-      Сбрасывается только когда игра реально сменилась (или запустилась после простоя).
-      Если Steam недоступен — оставляем всё как было, чтобы сайт не "моргал".
-    """
-    if player is None:
+    # ❗ если Steam не ответил — НЕ ломаем текущее состояние
+    if not player:
         return previous
 
-    now = int(time.time())
     persona_state = player.get("personastate", 0)
     online = persona_state != 0
-    current_game = player.get("gameextrainfo") if online else None
-    playing = bool(current_game)
 
-    same_game_session = (
-        previous.get("playing") == playing
-        and previous.get("game") == current_game
-        and previous.get("started")
-    )
+    game = player.get("gameextrainfo") if online else None
+    playing = game is not None
 
-    if not playing:
-        started = None
+    prev_game = previous.get("game")
+    prev_playing = previous.get("playing")
+
+    # 💥 ключевая логика: смена игры или выход
+    game_changed = game != prev_game
+
+    if playing:
+        # старт новой сессии только если игра реально изменилась
+        started = previous.get("started")
+
+        if not prev_playing or game_changed:
+            started = now
+
     else:
-        started = previous.get("started") if same_game_session else now
+        # 💥 ВАЖНО: всегда сбрасываем при выходе
+        started = None
 
     return {
         "online": online,
         "playing": playing,
-        "game": current_game,
+        "game": game,
         "started": started,
     }
 
@@ -104,21 +87,18 @@ def main():
     previous = load_previous_status()
 
     if not api_key or not steam_id:
-        print(
-            "STEAM_API_KEY или STEAM_ID не заданы в переменных окружения. "
-            "Оставляю status.json без изменений.",
-            file=sys.stderr,
-        )
+        print("Missing STEAM_API_KEY or STEAM_ID", file=sys.stderr)
         new_status = previous
     else:
-        player = fetch_steam_data(api_key, steam_id)
+        data = fetch_steam_data(api_key, steam_id)
+        player = data.get("response", {}).get("players", [None])[0] if data else None
         new_status = build_status(player, previous)
 
     with open(STATUS_FILE, "w", encoding="utf-8") as f:
         json.dump(new_status, f, ensure_ascii=False, indent=4)
         f.write("\n")
 
-    print("status.json обновлён:", json.dumps(new_status, ensure_ascii=False))
+    print("Updated:", new_status)
 
 
 if __name__ == "__main__":
