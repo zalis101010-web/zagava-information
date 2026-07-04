@@ -7,6 +7,7 @@
   if (!el) return;
 
   let currentStatus = null;
+  let lastStarted = null;
 
   function formatDuration(totalSeconds) {
     const s = Math.max(0, Math.floor(totalSeconds));
@@ -30,9 +31,15 @@
     }
 
     if (playing && game) {
+      // 💥 ВАЖНО: никакого подменного nowSec больше нет
+      if (!started || typeof started !== "number") {
+        el.textContent = `Играет в ${game} | 00:00:00`;
+        return;
+      }
+
       const nowSec = Math.floor(Date.now() / 1000);
-      const startedSec = typeof started === "number" ? started : nowSec;
-      const elapsed = nowSec - startedSec;
+      const elapsed = nowSec - started;
+
       el.textContent = `Играет в ${game} | ${formatDuration(elapsed)}`;
       return;
     }
@@ -42,19 +49,33 @@
 
   async function fetchStatus() {
     try {
-      const res = await fetch(STATUS_URL + "?t=" + Date.now(), { cache: "no-store" });
+      const res = await fetch(STATUS_URL + "?t=" + Date.now(), {
+        cache: "no-store",
+      });
+
       if (!res.ok) throw new Error("HTTP " + res.status);
-      currentStatus = await res.json();
+
+      const data = await res.json();
+
+      currentStatus = data;
+
+      // 💥 моментальная синхронизация таймера при смене started
+      if (data?.started !== lastStarted) {
+        lastStarted = data?.started;
+        render();
+      }
     } catch (e) {
       console.warn("Не удалось обновить status.json:", e);
+
       if (!currentStatus) {
         el.textContent = "Не в сети";
       }
     }
+
     render();
   }
 
   fetchStatus();
-  setInterval(render, TICK_INTERVAL_MS);
   setInterval(fetchStatus, POLL_INTERVAL_MS);
+  setInterval(render, TICK_INTERVAL_MS);
 })();
