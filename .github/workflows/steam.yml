@@ -2,47 +2,34 @@ name: Update Steam Status
 
 on:
   schedule:
-    - cron: "*/1 * * * *"
+    - cron: '*/1 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
 
-concurrency:
-  group: steam-status
-  cancel-in-progress: true
-
 jobs:
-  update-status:
+  update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
-      - name: Install dependencies
-        run: pip install requests
-
-      - name: Run Steam status updater
+      - name: Update status.json
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
           STEAM_ID: ${{ secrets.STEAM_ID }}
         run: python update_steam.py
 
-      - name: Commit and push status.json if changed
+      - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain status.json)" ]; then
-            git add status.json
-            git commit -m "Update Steam status [skip ci]"
-            git push
-          else
-            echo "status.json not changed, nothing to commit"
-          fi
+          git add status.json
+          git diff --staged --quiet || git commit -m "Update Steam status"
+          git push
