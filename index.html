@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>information | zagava</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --c1: #aaaaaa;
+    --c2: #555555;
+    --c3: #dddddd;
+    --bg: #080808;
+    --card-bg: rgba(30, 30, 30, 0.55);
+    --bd: rgba(160, 160, 160, 0.28);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #bg-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  #splash {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: radial-gradient(ellipse at 50% 45%, #111111 0%, #020202 75%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    transition: opacity 1s ease, visibility 1s ease;
+  }
+  #splash.hidden { opacity: 0; visibility: hidden; }
+
+  .splash-title {
+    font-family: 'Unbounded', sans-serif;
+    font-size: clamp(1.6rem, 6vw, 3rem);
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -0.02em;
+    text-shadow: 0 0 30px #888888, 0 0 80px #333333;
+  }
+  .splash-sub {
+    color: rgba(180,180,180,0.6);
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  #startBtn {
+    margin-top: 8px;
+    padding: 15px 44px;
+    background: transparent;
+    border: 2px solid var(--c1);
+    color: var(--c3);
+    font-family: 'Unbounded', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    border-radius: 8px;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+    transition: color 0.3s, box-shadow 0.3s, transform 0.15s;
+  }
+  #startBtn:hover {
+    color: #fff;
+    box-shadow: 0 0 24px #888888, 0 0 60px #333333;
+    transform: scale(1.04);
+  }
+
+  .splash-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .splash-particles span {
+    position: absolute;
+    border-radius: 50%;
+    background: #aaaaaa;
+    animation: floatup linear infinite;
+    opacity: 0;
+  }
+  @keyframes floatup {
+    0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+    10%  { opacity: 0.7; }
+    90%  { opacity: 0.3; }
+    100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+  }
+
+  #main {
+    display: none;
+    width: min(430px, 96vw);
+    position: relative;
+    z-index: 1;
+  }
+  #main.visible { display: block; animation: cardIn 0.7s cubic-bezier(.22,1,.36,1) forwards; }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(30px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .card {
+    background: var(--card-bg);
+    backdrop-filter: blur(22px) saturate(1.7);
+    -webkit-backdrop-filter: blur(22px) saturate(1.7);
+    border: 1.5px solid var(--bd);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    animation: beat 0.9s ease-in-out infinite alternate;
+  }
+
+  @keyframes beat {
+    from { box-shadow: 0 0 0 1px rgba(150,150,150,0.1), 0 10px 50px rgba(0,0,0,0.7); }
+    to   { box-shadow: 0 0 0 3px rgba(160,160,160,0.2), 0 14px 70px rgba(20,20,20,0.9); }
+  }
+
+  .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
+    pointer-events: none;
+    z-index: 20;
+    border-radius: 20px;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -60%;
+    left: 0; right: 0;
+    height: 55%;
+    background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.03) 50%, transparent);
+    animation: scanbeam 7s linear infinite;
+    pointer-events: none;
+    z-index: 21;
+  }
+  @keyframes scanbeam {
+    0%   { top: -60%; }
+    100% { top: 110%; }
+  }
+
+  .banner {
+    position: relative;
+    width: 100%;
+    height: 195px;
+    overflow: hidden;
+  }
+  .banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: brightness(.72) contrast(1.05) saturate(.8);
+  }
+  .banner-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.1) 30%, rgba(0,0,0,0.85) 100%);
+  }
+
+  .views-badge {
+    position: absolute;
+    top: 11px;
+    right: 11px;
+    background: rgba(8,0,18,0.78);
+    border: 1px solid rgba(160,160,160,0.4);
+    backdrop-filter: blur(10px);
+    border-radius: 22px;
+    padding: 5px 13px 5px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #cccccc;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    z-index: 5;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .views-badge svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .views-badge .eye-dot {
+    width: 6px; height: 6px;
+    background: #aaaaaa;
+    border-radius: 50%;
+    animation: blink 2.5s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .card-body { padding: 20px 22px 24px; }
+
+  .avatar-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: -46px;
+    margin-bottom: 13px;
+    position: relative;
+    z-index: 2;
+  }
+  .avatar {
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    border: 3px solid #888888;
+    box-shadow: 0 0 16px #555555, 0 0 40px #222222;
+    background: #111111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    overflow: hidden;
+  }
+
+  h1 {
+    font-family: 'Unbounded', sans-serif;
+    font-weight: 900;
+    font-size: 1.42rem;
+    color: #fff;
+    text-align: center;
+    letter-spacing: -0.01em;
+    text-shadow: 0 0 12px #777777, 0 0 30px #333333;
+    margin-bottom: 6px;
+  }
+
+  .status {
+    text-align: center;
+    color: #bbbbbb;
+    font-size: 0.77rem;
+    margin-bottom: 16px;
+    line-height: 1.5;
+    opacity: 0.9;
+  }
+
+  .info-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 0;
+    padding-left: 4px;
+  }
+  .info-list li {
+    color: rgba(210,210,210,0.88);
+    font-size: 0.84rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .info-list li .arrow { color: #888888; font-size: 0.74rem; padding-top: 2px; flex-shrink: 0; }
+
+  .clock-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(210,210,210,0.88);
+    font-size: 0.84rem;
+    padding-left: 4px;
+  }
+  .clock-row .arrow { color: #888888; font-size: 0.74rem; flex-shrink: 0; }
+  #clockDisplay {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--c3);
+    text-shadow: 0 0 8px #888888;
+    letter-spacing: 0.05em;
+  }
+
+  .now-playing {
+    margin-top: 16px;
+    background: rgba(30,30,30,0.5);
+    border: 1px solid rgba(140,140,140,0.18);
+    border-radius: 12px;
+    padding: 10px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .np-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(170,170,170,0.7);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .eq-bars {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    height: 14px;
+  }
+  .eq-bars span {
+    width: 3px;
+    background: var(--c1);
+    border-radius: 2px;
+    animation: eq linear infinite;
+    box-shadow: 0 0 4px #888888;
+  }
+  .eq-bars span:nth-child(1){ animation-duration:0.5s; height:40%; }
+  .eq-bars span:nth-child(2){ animation-duration:0.7s; height:80%; animation-delay:0.1s; }
+  .eq-bars span:nth-child(3){ animation-duration:0.4s; height:55%; animation-delay:0.2s; }
+  .eq-bars span:nth-child(4){ animation-duration:0.6s; height:90%; animation-delay:0.05s; }
+  .eq-bars span:nth-child(5){ animation-duration:0.45s; height:35%; animation-delay:0.15s; }
+  @keyframes eq {
+    0%,100% { transform: scaleY(1); }
+    50%      { transform: scaleY(0.2); }
+  }
+
+  .np-track {
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    color: #dddddd;
+  }
+  .np-track-inner {
+    display: inline-block;
+    animation: marquee 12s linear infinite;
+  }
+  @keyframes marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .np-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    color: rgba(160,160,160,0.65);
+  }
+  .np-bar-wrap {
+    flex: 1;
+    height: 3px;
+    background: rgba(100,100,100,0.2);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .np-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #444444, #aaaaaa);
+    border-radius: 10px;
+    box-shadow: 0 0 6px #888888;
+    transition: width 1s linear;
+  }
+
+  .divider { border: none; border-top: 1px solid rgba(140,140,140,0.14); margin: 16px 0; }
+
+  .icons-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .icon-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px; height: 48px;
+    border-radius: 13px;
+    border: 1.5px solid rgba(140,140,140,0.22);
+    background: rgba(30,30,30,0.3);
+    color: rgba(180,180,180,0.75);
+    text-decoration: none;
+    transition: all 0.22s ease;
+  }
+  .icon-link:hover {
+    color: #fff;
+    border-color: #aaaaaa;
+    background: rgba(80,80,80,0.25);
+    box-shadow: 0 0 18px #666666, 0 0 40px #333333;
+    transform: scale(1.17) translateY(-3px);
+  }
+  .icon-link svg { width: 22px; height: 22px; }
+
+  
+  .icon-link.funpay:hover {
+    border-color: #f5a623;
+    box-shadow: 0 0 18px rgba(245,166,35,0.5), 0 0 40px rgba(245,166,35,0.2);
+  }
+
+  .geo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    color: rgba(150,150,150,0.65);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+  }
+  .geo svg { width: 13px; height: 13px; color: #888888; flex-shrink: 0; }
+  .funpay-link,
+.funpay-link:visited {
+  color: rgba(210,210,210,0.88);
+  text-decoration: underline;
+}
+
+.funpay-link:hover {
+  color: #ffffff;
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div id="splash">
+  <div class="splash-particles" id="particles"></div>
+  <div class="splash-title">@zagava</div>
+  <div class="splash-sub">📋 Информационная Страница 📋</div>
+  <button id="startBtn" onclick="startSite()">🌐 Нажми на меня! 🌐</button>
+</div>
+
+<div id="main">
+  <div class="card">
+    <div class="banner">
+      <img src="cat.gif" alt="banner" onerror="this.style.background='linear-gradient(135deg,#1a003a,#3a0066)';this.removeAttribute('src')">
+      <div class="banner-overlay"></div>
+      <div class="views-badge">
+        <div class="eye-dot"></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        <span id="viewCount">...</span>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="avatar-wrap">
+        <div class="avatar">
+          <img src="logo.png" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.outerHTML='🐈'">
+        </div>
+      </div>
+
+      <h1 style="text-align: center;">Ваш Ник</h1>
+      <p class="status" style="text-align: center;">📁 Информационный раздел</p>
+
+<ul class="info-list">
+  <li>
+    <span class="arrow">●</span>
+    <span>Настоящее имя: Антон</span>
+  </li>
+
+  <li>
+    <span class="arrow">●</span>
+    <span>Возраст: 15 лет</span>
+  </li>
+
+  <li>
+    <span class="arrow">●</span>
+    <span>
+      В сети: На сайте - 
+      <a href="https://funpay.com/users/20047522/" target="_blank" class="funpay-link">
+        funpay.com
+      </a>
+    </span>
+  </li>
+</ul>
+      <div style="height:7px"></div>
+      <div class="clock-row">
+        <span class="arrow">●</span>
+        <span>Местное время:&nbsp;<span id="clockDisplay">--:--:--</span></span>
+      </div>
+
+      <div class="now-playing">
+        <div class="np-header">
+          <div class="eq-bars">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <span>Сейчас играет</span>
+        </div>
+        <div class="np-track">
+          <span class="np-track-inner" id="npTrack">
+            ♫ Каникулы Бонифация  — До новой весны&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;♫ Каникулы Бонифация  — До новой весны&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;
+          </span>
+        </div>
+        <div class="np-progress">
+          <span id="npCurrent">0:00</span>
+          <div class="np-bar-wrap"><div class="np-bar-fill" id="npFill" style="width:0%"></div></div>
+          <span id="npTotal">4:46</span>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="icons-row">
+        <!-- Telegram -->
+        <a class="icon-link" href="https://t.me/zagava" target="_blank" title="Telegram">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+          </svg>
+        </a>
+
+        <!-- TikTok -->
+        <a class="icon-link" href="https://www.tiktok.com/@zernawxx" target="_blank" title="TikTok">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.32 6.32 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V9.15a8.16 8.16 0 0 0 4.77 1.52V7.23a4.85 4.85 0 0 1-1-.54z"/>
+          </svg>
+        </a>
+
+        <!-- Steam -->
+        <a class="icon-link" href="https://steamcommunity.com/profiles/76561199789113509/" target="_blank" title="Steam">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.5 1.009 2.455-.397.957-1.497 1.41-2.454 1.012H7.54zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.663 0 3.015-1.35 3.015-3.015zm-5.273-.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.251-1.017 2.265-2.266 2.265-1.252 0-2.265-1.014-2.265-2.265z"/>
+          </svg>
+        </a>
+
+        <!-- FunPay -->
+        <a class="icon-link funpay" href="https://funpay.com/users/20047522/" target="_blank" title="FunPay">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Bold F path: vertical bar + top bar + middle bar -->
+            <path d="M5 3 H19 V6 H9 V10.5 H17 V13.5 H9 V21 H5 Z" fill="currentColor"/>
+          </svg>
+        </a>
+      </div>
+
+      <hr class="divider" style="margin-top:0">
+
+      <div class="geo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+        Stavropol, Russia
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="bgMusic" src="music.mp3" loop preload="auto"></audio>
+
+<script>
+(function() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars = [], grid = [];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < 120; i++) {
+    stars.push({
+      x: Math.random(), y: Math.random(),
+      r: Math.random() * 1.4 + 0.3,
+      speed: Math.random() * 0.0002 + 0.00005,
+      phase: Math.random() * Math.PI * 2,
+      color: Math.random() > 0.7 ? '#888888' : '#ffffff'
+    });
+  }
+
+  const cols = 9, rows = 6;
+  for (let r = 0; r <= rows; r++) {
+    for (let c = 0; c <= cols; c++) {
+      grid.push({ cx: c/cols, cy: r/rows, phase: Math.random()*Math.PI*2, speed: Math.random()*0.001+0.0003 });
+    }
+  }
+
+  let t = 0;
+  function draw() {
+    t += 0.008;
+    ctx.clearRect(0, 0, W, H);
+
+    const bg = ctx.createRadialGradient(W*.5, H*.45, 0, W*.5, H*.5, W*.75);
+    bg.addColorStop(0, '#141414');
+    bg.addColorStop(0.55, '#090909');
+    bg.addColorStop(1, '#020202');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    [[0.25,0.6,0.35],[0.72,0.3,0.28],[0.5,0.8,0.2]].forEach(([nx,ny,nr]) => {
+      const g = ctx.createRadialGradient(W*nx, H*ny, 0, W*nx, H*ny, W*nr);
+      g.addColorStop(0, 'rgba(60,60,60,0.18)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+    });
+
+    ctx.save();
+    ctx.globalAlpha = 0.07;
+    ctx.strokeStyle = '#555555';
+    ctx.lineWidth = 1;
+    for (let r = 0; r <= rows; r++) {
+      ctx.beginPath();
+      for (let c = 0; c <= cols; c++) {
+        const n = grid[r*(cols+1)+c];
+        const ox = Math.sin(t*n.speed*600+n.phase)*0.012;
+        const oy = Math.cos(t*n.speed*600+n.phase)*0.012;
+        c===0 ? ctx.moveTo((n.cx+ox)*W, (n.cy+oy)*H) : ctx.lineTo((n.cx+ox)*W, (n.cy+oy)*H);
+      }
+      ctx.stroke();
+    }
+    for (let c = 0; c <= cols; c++) {
+      ctx.beginPath();
+      for (let r = 0; r <= rows; r++) {
+        const n = grid[r*(cols+1)+c];
+        const ox = Math.sin(t*n.speed*600+n.phase)*0.012;
+        const oy = Math.cos(t*n.speed*600+n.phase)*0.012;
+        r===0 ? ctx.moveTo((n.cx+ox)*W, (n.cy+oy)*H) : ctx.lineTo((n.cx+ox)*W, (n.cy+oy)*H);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    stars.forEach(s => {
+      const p = 0.5 + 0.5*Math.sin(t*s.speed*1000+s.phase);
+      ctx.save();
+      ctx.globalAlpha = 0.4+0.5*p;
+      ctx.fillStyle = s.color;
+      ctx.shadowColor = s.color;
+      ctx.shadowBlur = s.r*3;
+      ctx.beginPath();
+      ctx.arc(s.x*W, s.y*H, s.r*p, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+(function() {
+  const c = document.getElementById('particles');
+  for (let i = 0; i < 35; i++) {
+    const s = document.createElement('span');
+    const sz = 1+Math.random()*3;
+    s.style.cssText = `left:${Math.random()*100}%;width:${sz}px;height:${sz}px;animation-duration:${4+Math.random()*8}s;animation-delay:${Math.random()*8}s`;
+    c.appendChild(s);
+  }
+})();
+
+(function() {
+  const K = 'zagava_vc_v2';
+  const VK = 'zagava_visited_v2';
+  let n = parseInt(localStorage.getItem(K)||'0', 10);
+  if (!sessionStorage.getItem(VK)) {
+    n++;
+    localStorage.setItem(K, n);
+    sessionStorage.setItem(VK, '1');
+  }
+  document.getElementById('viewCount').textContent = n.toLocaleString('ru-RU');
+})();
+
+function updateClock() {
+  const now = new Date();
+  const msk = new Date(now.getTime() + now.getTimezoneOffset()*60000 + 3*3600000);
+  const p = n => String(n).padStart(2,'0');
+  document.getElementById('clockDisplay').textContent = `${p(msk.getHours())}:${p(msk.getMinutes())}:${p(msk.getSeconds())}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+const TOTAL = 165;
+let elapsed = 0;
+
+function fmt(s) { return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+
+function startNowPlaying() {
+  document.getElementById('npTotal').textContent = fmt(TOTAL);
+  setInterval(() => {
+    elapsed = (elapsed+1) % TOTAL;
+    document.getElementById('npCurrent').textContent = fmt(elapsed);
+    document.getElementById('npFill').style.width = (elapsed/TOTAL*100)+'%';
+  }, 1000);
+}
+
+function startSite() {
+  document.getElementById('splash').classList.add('hidden');
+  const aud = document.getElementById('bgMusic');
+  aud.volume = 0.55;
+  aud.play().catch(()=>{});
+
+  aud.addEventListener('timeupdate', () => {
+    if (!aud.duration) return;
+    const s = Math.floor(aud.currentTime);
+    const tot = Math.floor(aud.duration);
+    elapsed = s;
+    document.getElementById('npCurrent').textContent = fmt(s);
+    document.getElementById('npTotal').textContent = fmt(tot);
+    document.getElementById('npFill').style.width = (s/tot*100)+'%';
+  });
+
+  setTimeout(()=>{ if(!aud.duration) startNowPlaying(); }, 2000);
+  setTimeout(()=>{ document.getElementById('main').classList.add('visible'); }, 350);
+}
+</script>
+</body>
+</html>
