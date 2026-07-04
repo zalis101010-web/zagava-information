@@ -1,6 +1,6 @@
 {
-  "online": false,
-  "playing": false,
-  "game": "",
-  "started": 0
+    "online": true,
+    "playing": false,
+    "game": null,
+    "started": null
 }
