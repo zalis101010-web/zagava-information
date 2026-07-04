@@ -6,7 +6,6 @@ import urllib.request
 import urllib.error
 
 STATUS_FILE = "status.json"
-
 API_URL = (
     "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/"
     "?key={api_key}&steamids={steam_id}"
@@ -15,23 +14,22 @@ API_URL = (
 
 def load_previous_status():
     """Читает предыдущий status.json, если он есть, иначе возвращает пустой статус."""
-    now = int(time.time())
     default = {
+        "online": False,
         "playing": False,
         "game": None,
-        "started": now,
+        "started": None,
     }
-
     if not os.path.exists(STATUS_FILE):
         return default
-
     try:
         with open(STATUS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         return {
+            "online": data.get("online", False),
             "playing": data.get("playing", False),
             "game": data.get("game"),
-            "started": data.get("started") or now,
+            "started": data.get("started"),
         }
     except (json.JSONDecodeError, OSError):
         return default
@@ -40,7 +38,6 @@ def load_previous_status():
 def fetch_steam_data(api_key, steam_id):
     """Делает запрос к Steam Web API и возвращает словарь player, либо None при ошибке."""
     url = API_URL.format(api_key=api_key, steam_id=steam_id)
-
     try:
         with urllib.request.urlopen(url, timeout=15) as response:
             raw = response.read()
@@ -63,36 +60,37 @@ def fetch_steam_data(api_key, steam_id):
 
 
 def build_status(player, previous):
-    """Строит новый статус на основе данных Steam и предыдущего состояния.
-
-    Состояний всего два, у каждого свой таймер, который идёт с момента
-    входа в это состояние и сбрасывается только при реальной смене:
-      - playing=True, game="Имя игры"  -> "Играет в Имя игры | таймер"
-      - playing=False, game=None       -> "Не играет | таймер"
-    Офлайн и онлайн-без-игры на сайте выглядят одинаково ("Не играет"),
-    но внутри всё равно отслеживаются как единое состояние.
     """
-    now = int(time.time())
+    Строит новый статус на основе данных Steam и предыдущего состояния.
 
+    - online: в сети / не в сети (personastate != 0)
+    - playing: сейчас запущена игра (gameextrainfo)
+    - started: unix-время начала ТЕКУЩЕЙ игровой сессии.
+      Сбрасывается только когда игра реально сменилась (или запустилась после простоя).
+      Если Steam недоступен — оставляем всё как было, чтобы сайт не "моргал".
+    """
     if player is None:
-        # Steam недоступен или произошла ошибка — сохраняем предыдущее
-        # состояние, чтобы сайт не "моргал" и не ломался.
         return previous
 
+    now = int(time.time())
     persona_state = player.get("personastate", 0)
     online = persona_state != 0
     current_game = player.get("gameextrainfo") if online else None
     playing = bool(current_game)
 
-    same_state = (
+    same_game_session = (
         previous.get("playing") == playing
         and previous.get("game") == current_game
         and previous.get("started")
     )
 
-    started = previous.get("started") if same_state else now
+    if not playing:
+        started = None
+    else:
+        started = previous.get("started") if same_game_session else now
 
     return {
+        "online": online,
         "playing": playing,
         "game": current_game,
         "started": started,
