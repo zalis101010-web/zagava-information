@@ -15,11 +15,11 @@ API_URL = (
 
 def load_previous_status():
     """Читает предыдущий status.json, если он есть, иначе возвращает пустой статус."""
+    now = int(time.time())
     default = {
-        "online": False,
         "playing": False,
         "game": None,
-        "started": None,
+        "started": now,
     }
 
     if not os.path.exists(STATUS_FILE):
@@ -29,10 +29,9 @@ def load_previous_status():
         with open(STATUS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         return {
-            "online": data.get("online", False),
             "playing": data.get("playing", False),
             "game": data.get("game"),
-            "started": data.get("started"),
+            "started": data.get("started") or now,
         }
     except (json.JSONDecodeError, OSError):
         return default
@@ -64,7 +63,15 @@ def fetch_steam_data(api_key, steam_id):
 
 
 def build_status(player, previous):
-    """Строит новый статус на основе данных Steam и предыдущего состояния."""
+    """Строит новый статус на основе данных Steam и предыдущего состояния.
+
+    Состояний всего два, у каждого свой таймер, который идёт с момента
+    входа в это состояние и сбрасывается только при реальной смене:
+      - playing=True, game="Имя игры"  -> "Играет в Имя игры | таймер"
+      - playing=False, game=None       -> "Не играет | таймер"
+    Офлайн и онлайн-без-игры на сайте выглядят одинаково ("Не играет"),
+    но внутри всё равно отслеживаются как единое состояние.
+    """
     now = int(time.time())
 
     if player is None:
@@ -74,38 +81,19 @@ def build_status(player, previous):
 
     persona_state = player.get("personastate", 0)
     online = persona_state != 0
+    current_game = player.get("gameextrainfo") if online else None
+    playing = bool(current_game)
 
-    current_game = player.get("gameextrainfo")
-    playing = online and bool(current_game)
-
-    if not online:
-        return {
-            "online": False,
-            "playing": False,
-            "game": None,
-            "started": None,
-        }
-
-    if not playing:
-        return {
-            "online": True,
-            "playing": False,
-            "game": None,
-            "started": None,
-        }
-
-    # Пользователь сейчас играет.
-    same_game = (
-        previous.get("playing")
+    same_state = (
+        previous.get("playing") == playing
         and previous.get("game") == current_game
         and previous.get("started")
     )
 
-    started = previous.get("started") if same_game else now
+    started = previous.get("started") if same_state else now
 
     return {
-        "online": True,
-        "playing": True,
+        "playing": playing,
         "game": current_game,
         "started": started,
     }
