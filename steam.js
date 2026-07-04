@@ -1,113 +1,60 @@
 (function () {
-    "use strict";
+  const STATUS_URL = "status.json";
+  const POLL_INTERVAL_MS = 40 * 1000;
+  const TICK_INTERVAL_MS = 1000;
 
-    var STATUS_URL = "status.json";
-    var FETCH_INTERVAL_MS = 40000; // раз в 40 секунд
-    var TICK_INTERVAL_MS = 1000;   // раз в секунду
+  const el = document.getElementById("steamStatus");
+  if (!el) return;
 
-    var elementId = "steamStatus";
-    var currentStatus = null; // последние данные из status.json
-    var elapsedSeconds = 0;   // сколько секунд идёт текущая игра (локальный счётчик)
+  let currentStatus = null;
 
-    function pad(num) {
-        return String(num).padStart(2, "0");
+  function formatDuration(totalSeconds) {
+    const s = Math.max(0, Math.floor(totalSeconds));
+    const hh = String(Math.floor(s / 3600)).padStart(2, "0");
+    const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+    const ss = String(s % 60).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+  }
+
+  function render() {
+    if (!currentStatus) {
+      el.textContent = "Загрузка...";
+      return;
     }
 
-    function getMskHour() {
-        // Та же логика, что и в часах на сайте: фиксированный МСК (UTC+3),
-        // не зависит от часового пояса посетителя.
-        var now = new Date();
-        var msk = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + 3 * 3600000);
-        return msk.getHours();
+    const { online, playing, game, started } = currentStatus;
+
+    if (!online) {
+      el.textContent = "Не в сети";
+      return;
     }
 
-    function isSleepingHours() {
-        var hour = getMskHour();
-        return hour >= 0 && hour < 8; // с 00:00 до 08:00 по МСК
+    if (playing && game) {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const startedSec = typeof started === "number" ? started : nowSec;
+      const elapsed = nowSec - startedSec;
+      el.textContent = `Играет в ${game} | ${formatDuration(elapsed)}`;
+      return;
     }
 
-    function formatDuration(totalSeconds) {
-        if (totalSeconds < 0) {
-            totalSeconds = 0;
-        }
-        var hours = Math.floor(totalSeconds / 3600);
-        var minutes = Math.floor((totalSeconds % 3600) / 60);
-        var seconds = Math.floor(totalSeconds % 60);
-        return pad(hours) + ":" + pad(minutes) + ":" + pad(seconds);
+    el.textContent = "В сети | Не играет";
+  }
+
+  async function fetchStatus() {
+    try {
+      const res = await fetch(STATUS_URL + "?t=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      currentStatus = await res.json();
+    } catch (e) {
+      console.warn("Не удалось обновить status.json:", e);
+      if (!currentStatus) {
+        el.textContent = "Не в сети";
+      }
     }
+    render();
+  }
 
-    function render() {
-        var el = document.getElementById(elementId);
-        if (!el) {
-            return;
-        }
-
-        if (!currentStatus) {
-            el.textContent = "Загрузка...";
-            return;
-        }
-
-        if (!currentStatus.playing) {
-            var label = isSleepingHours() ? "Спит" : "Не играет";
-            el.textContent = label + " | " + formatDuration(elapsedSeconds);
-            return;
-        }
-
-        var gameName = currentStatus.game || "Игра";
-        el.textContent = "Играет в " + gameName + " | " + formatDuration(elapsedSeconds);
-    }
-
-    function applyStatus(data) {
-        var nowSeconds = Math.floor(Date.now() / 1000);
-
-        if (data && data.started) {
-            elapsedSeconds = nowSeconds - data.started;
-            if (elapsedSeconds < 0) {
-                elapsedSeconds = 0;
-            }
-        } else {
-            elapsedSeconds = 0;
-        }
-
-        currentStatus = data;
-        render();
-    }
-
-    function fetchStatus() {
-        fetch(STATUS_URL + "?t=" + Date.now(), { cache: "no-store" })
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error("Bad response: " + response.status);
-                }
-                return response.json();
-            })
-            .then(function (data) {
-                applyStatus(data);
-            })
-            .catch(function (err) {
-                // Steam или сеть недоступны — просто оставляем последнее
-                // известное состояние на экране, сайт не ломаем.
-                console.warn("Не удалось обновить Steam-статус:", err);
-            });
-    }
-
-    function tick() {
-        if (currentStatus) {
-            elapsedSeconds += 1;
-            render();
-        }
-    }
-
-    function init() {
-        render();
-        fetchStatus();
-        setInterval(fetchStatus, FETCH_INTERVAL_MS);
-        setInterval(tick, TICK_INTERVAL_MS);
-    }
-
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
-    } else {
-        init();
-    }
+  fetchStatus();
+  setInterval(render, TICK_INTERVAL_MS);
+  setInterval(fetchStatus, POLL_INTERVAL_MS);
 })();
