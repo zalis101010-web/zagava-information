@@ -1,6 +1,6 @@
 {
-    "online": true,
-    "playing": true,
-    "game": "Soundpad",
-    "started": 1783208530
+  "online": true,
+  "playing": false,
+  "game": null,
+  "started": null
 }
