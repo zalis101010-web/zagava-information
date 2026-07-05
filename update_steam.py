@@ -13,7 +13,7 @@ API_URL = (
 )
 
 
-def load_previous_status():
+def load_previous():
     default = {
         "online": False,
         "playing": False,
@@ -27,50 +27,57 @@ def load_previous_status():
     try:
         with open(STATUS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except:
         return default
 
 
-def fetch_steam_data(api_key, steam_id):
+def fetch(api_key, steam_id):
     url = API_URL.format(api_key=api_key, steam_id=steam_id)
 
     try:
-        with urllib.request.urlopen(url, timeout=15) as response:
-            return json.loads(response.read())
+        with urllib.request.urlopen(url, timeout=15) as r:
+            return json.loads(r.read())
     except Exception as e:
-        print(f"Steam API error: {e}", file=sys.stderr)
+        print("Steam API error:", e, file=sys.stderr)
         return None
 
 
-def build_status(player, previous):
+def build_status(player, prev):
     now = int(time.time())
 
-    # ❗ если Steam не ответил — НЕ ломаем текущее состояние
+    # 💥 если Steam не ответил — НЕ держим старое состояние
     if not player:
-        return previous
+        return {
+            "online": prev.get("online", False),
+            "playing": False,
+            "game": None,
+            "started": None,
+        }
 
-    persona_state = player.get("personastate", 0)
-    online = persona_state != 0
+    persona = player.get("personastate", 0)
+    online = persona != 0
 
     game = player.get("gameextrainfo") if online else None
     playing = game is not None
 
-    prev_game = previous.get("game")
-    prev_playing = previous.get("playing")
+    prev_game = prev.get("game")
+    prev_started = prev.get("started")
 
-    # 💥 ключевая логика: смена игры или выход
+    # 💥 если игра поменялась → новый старт
     game_changed = game != prev_game
 
-    if playing:
-        # старт новой сессии только если игра реально изменилась
-        started = previous.get("started")
+    if not playing:
+        return {
+            "online": online,
+            "playing": False,
+            "game": None,
+            "started": None,
+        }
 
-        if not prev_playing or game_changed:
-            started = now
-
+    if game_changed or not prev_started:
+        started = now
     else:
-        # 💥 ВАЖНО: всегда сбрасываем при выходе
-        started = None
+        started = prev_started
 
     return {
         "online": online,
@@ -84,19 +91,18 @@ def main():
     api_key = os.environ.get("STEAM_API_KEY")
     steam_id = os.environ.get("STEAM_ID")
 
-    previous = load_previous_status()
+    prev = load_previous()
 
     if not api_key or not steam_id:
-        print("Missing STEAM_API_KEY or STEAM_ID", file=sys.stderr)
-        new_status = previous
+        print("Missing env vars", file=sys.stderr)
+        new_status = prev
     else:
-        data = fetch_steam_data(api_key, steam_id)
+        data = fetch(api_key, steam_id)
         player = data.get("response", {}).get("players", [None])[0] if data else None
-        new_status = build_status(player, previous)
+        new_status = build_status(player, prev)
 
     with open(STATUS_FILE, "w", encoding="utf-8") as f:
-        json.dump(new_status, f, ensure_ascii=False, indent=4)
-        f.write("\n")
+        json.dump(new_status, f, ensure_ascii=False, indent=2)
 
     print("Updated:", new_status)
 
