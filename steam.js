@@ -31,14 +31,20 @@
     }
 
     if (playing && game) {
-      // 💥 ВАЖНО: никакого подменного nowSec больше нет
+      const nowSec = Math.floor(Date.now() / 1000);
+
       if (!started || typeof started !== "number") {
         el.textContent = `Играет в ${game} | 00:00:00`;
         return;
       }
 
-      const nowSec = Math.floor(Date.now() / 1000);
       const elapsed = nowSec - started;
+
+      // 💥 защита от “вечного Dota”
+      if (elapsed > 900) {
+        el.textContent = "В сети | статус обновляется...";
+        return;
+      }
 
       el.textContent = `Играет в ${game} | ${formatDuration(elapsed)}`;
       return;
@@ -49,27 +55,19 @@
 
   async function fetchStatus() {
     try {
-      const res = await fetch(STATUS_URL + "?t=" + Date.now(), {
+      const res = await fetch(STATUS_URL + "?v=" + Date.now(), {
         cache: "no-store",
       });
 
-      if (!res.ok) throw new Error("HTTP " + res.status);
-
       const data = await res.json();
-
       currentStatus = data;
 
-      // 💥 моментальная синхронизация таймера при смене started
       if (data?.started !== lastStarted) {
-        lastStarted = data?.started;
+        lastStarted = data.started;
         render();
       }
     } catch (e) {
-      console.warn("Не удалось обновить status.json:", e);
-
-      if (!currentStatus) {
-        el.textContent = "Не в сети";
-      }
+      console.warn("status fetch error:", e);
     }
 
     render();
