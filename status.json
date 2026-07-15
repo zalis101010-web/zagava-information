@@ -1,6 +1,6 @@
 {
   "online": true,
-  "playing": false,
-  "game": null,
-  "started": null
+  "playing": true,
+  "game": "Internet Cafe Simulator 2",
+  "started": 1784134727
 }
