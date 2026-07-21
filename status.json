@@ -1,6 +1,6 @@
 {
   "online": true,
-  "playing": false,
-  "game": null,
-  "started": null
+  "playing": true,
+  "game": "Counter-Strike 2",
+  "started": 1784664518
 }
