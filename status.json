@@ -1,6 +1,6 @@
 {
   "online": true,
-  "playing": true,
-  "game": "MECCHA CHAMELEON",
-  "started": 1784999403
+  "playing": false,
+  "game": null,
+  "started": null
 }
