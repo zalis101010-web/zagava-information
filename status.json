@@ -1,6 +1,6 @@
 {
-  "online": true,
-  "playing": true,
-  "game": "Dota 2",
-  "started": 1785188657
+  "online": false,
+  "playing": false,
+  "game": null,
+  "started": null
 }
